@@ -47,39 +47,12 @@ def send_to_openai(data, prompt=JOB_SCHEMA_PROMPT):
         print(f"Error sending to OpenAI: {e}")
         return None
 
-def deduplicate_table(db, table_name, title_field, company_field):
-    """Deduplicates entries in a TinyDB table."""
-    table = db.table(table_name)
-    Job = Query()
-    df = pd.DataFrame(table.all())
-    
-    if df.empty:
-        return
-    
-    df['datetime'] = pd.to_datetime(df['date'])
-    df['processed'] = df.get('processed', False)
-    df = df.sort_values(by=['datetime', 'processed'], ascending=[True, False])
-    df_clean = df.drop_duplicates(subset=[title_field, company_field], keep='first')
-    df_clean = df_clean.drop(columns=['datetime'])
-    
-    table.truncate()
-    table.insert_multiple(df_clean.to_dict('records'))
-
 def process_record(record, source, db_file=DB_FILE):
     """Processes a single record using OpenAI and stores in processed_data table."""
     db = TinyDB(db_file)
     processed_table = db.table(TABLE_PROCESSED)
     
-    data = {
-        "sidebar": record.get("sidebar", []),
-        "vacancy_title": record.get("vacancy-title", record.get("job_title", "")),
-        "company_title": record.get("company-title", record.get("company_name", "")),
-        "job_description": record.get("job_description", ""),
-        "company_info": record.get("company_info", ""),
-        "location": record.get("location", "")
-    }
-    
-    raw_content = send_to_openai(data)
+    raw_content = send_to_openai(record)
     if not raw_content:
         return None
     
@@ -93,26 +66,49 @@ def process_record(record, source, db_file=DB_FILE):
         return None
     
     parsed_data["date"] = record["date"]
-    parsed_data["time"] = record["time"]
-    parsed_data["source"] = source
+    parsed_data["source"] = record["source"]
+    parsed_data["occurrences"] = record["occurrences"]
     parsed_data["original_url"] = record["url"]
-    
+
     processed_table.insert(parsed_data)
     return parsed_data
 
-def process_data(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE):
-    """Processes unprocessed records from a source table."""
+
+def sync_occurrences_from_raw_to_processed(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE):
+    """For all raw records marked as processed, sync occurrences into the processed table."""
     db = TinyDB(db_file)
     raw_table = db.table(source)
+    processed_table = db.table(TABLE_PROCESSED)
+
     Job = Query()
-    
-    unprocessed = raw_table.search(Job.processed == False)
-    for record in unprocessed:
-        print(f"Processing record: {record.get('vacancy-title', record.get('job_title', 'Unknown'))}")
-        process_record(record, source, db_file)
-        raw_table.update({'processed': True}, Job.url == record['url'])
-    
-    title_field = "vacancy-title" if source == TABLE_ROBOTA_MD_RAW else "job_title"
-    company_field = "company-title" if source == TABLE_ROBOTA_MD_RAW else "company_name"
-    deduplicate_table(db, source, title_field, company_field)
-    deduplicate_table(db, TABLE_PROCESSED, "title", "company_info.name")
+    ProcessedJob = Query()
+
+    processed_raw = raw_table.search(Job.processed == True)
+
+    for record in processed_raw:
+        existing = processed_table.get(
+            (ProcessedJob.date == record["date"]) &
+            (ProcessedJob.original_url == record["url"])
+        )
+
+        if existing:
+            raw_occurrences = set(record.get("occurrences", []))
+            proc_occurrences = set(existing.get("occurrences", []))
+            merged = list(proc_occurrences.union(raw_occurrences))
+
+            if merged != existing.get("occurrences", []):
+                processed_table.update({"occurrences": merged}, doc_ids=[existing.doc_id])
+                print(f"Synced occurrences for: {record['url']}")
+
+def process_data(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE):
+    """Processes unprocessed records and syncs occurrences."""
+    db = TinyDB(db_file)
+    raw_table = db.table(source)
+
+    for doc in raw_table.all():
+        if not doc.get("processed", False):
+            print(f"Processing record: {doc.get('vacancy-title', doc.get('job_title', 'Unknown'))}")
+            process_record(doc, source, db_file)
+            raw_table.update({"processed": True}, doc_ids=[doc.doc_id])
+
+    sync_occurrences_from_raw_to_processed(source, db_file)
