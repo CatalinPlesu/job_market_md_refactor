@@ -117,8 +117,6 @@ def scrape_linkedin_job(driver, url):
     except Exception as e:
         print(f"Error scraping LinkedIn job {url}: {e}")
         return None
-    finally:
-        driver.quit()
 
 def get_linkedin_job_links(driver, search_url):
     """Collect all LinkedIn job links."""
@@ -128,7 +126,7 @@ def get_linkedin_job_links(driver, search_url):
         driver.get(search_url)
         time.sleep(2)
         click_element(driver, "button.modal__dismiss")
-        
+
         previous_count = 0
         retries = 0
         max_retries = 10
@@ -146,7 +144,7 @@ def get_linkedin_job_links(driver, search_url):
             except:
                 pass
 
-            jobs = driver.find_elements(By.CSS_SELECTOR, ".job-search-card, .base-card")
+            jobs = driver.find_elements(By.CSS_SELECTOR, "ul.jobs-search__results-list li")
             current_count = len(jobs)
 
             if current_count > previous_count:
@@ -154,14 +152,23 @@ def get_linkedin_job_links(driver, search_url):
                 retries = 0
             else:
                 retries += 1
+
+        # ✅ Extract job URLs here
+        job_cards = driver.find_elements(By.CSS_SELECTOR, "ul.jobs-search__results-list li")
+        for card in job_cards:
+            try:
+                link_elem = card.find_element(By.CSS_SELECTOR, "a.base-card__full-link")
+                url = link_elem.get_attribute("href")
+                if url:
+                    job_links.append(url)
+            except Exception as e:
+                print(f"Failed to extract link from a job card: {e}")
         
         return job_links
-    
+
     except Exception as e:
         print(f"Error collecting LinkedIn job links: {e}")
         return job_links
-    finally:
-        driver.quit()
 
 def scrape_linkedin_jobs(db_file):
     db = TinyDB(db_file)
