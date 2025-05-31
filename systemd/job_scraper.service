@@ -1,0 +1,6 @@
+[Unit]
+Description=Run Job Market Scraper
+
+[Service]
+Type=oneshot
+ExecStart=/home/catalin/Workspace/Jupiter/job_market_md_refactor/systemd/run_scraper.sh
