@@ -29,7 +29,7 @@ def parse_json(json_string):
         print(f"Invalid JSON: {e}")
         return None
 
-def send_to_openai(data, prompt=JOB_SCHEMA_PROMPT):
+def send_to_openai(data, context=CONTEXT, prompt=JOB_SCHEMA_PROMPTv2):
     """Sends data to OpenAI for processing."""
     client = OpenAI(api_key=API_KEY, base_url="https://api.deepseek.com")
     try:
@@ -37,7 +37,7 @@ def send_to_openai(data, prompt=JOB_SCHEMA_PROMPT):
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant"},
+                {"role": "system", "content": context},
                 {"role": "user", "content": prompt + json_string},
             ],
             stream=False
