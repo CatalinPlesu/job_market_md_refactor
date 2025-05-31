@@ -8,6 +8,12 @@ import re
 import random
 from datetime import datetime
 from tinydb import TinyDB, Query
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+email = os.getenv("LINKEDIN_EMAIL")
+password = os.getenv("LINKEDIN_PASSWORD")
 
 from config import *
 from utils import default_job_data, insert_if_new
@@ -31,11 +37,18 @@ def click_element(driver, selector, wait_time=2):
         print(f"Failed to click {selector}: {e}")
     return False
 
-def scrape_linkedin_job(url):
+def linkedin_login(driver, email, password):
+    driver.get("https://www.linkedin.com/login")
+    time.sleep(2)
+    
+    driver.find_element(By.ID, "username").send_keys(email)
+    driver.find_element(By.ID, "password").send_keys(password)
+    driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+    time.sleep(3)  # wait for redirect or cookie set
+
+
+def scrape_linkedin_job(driver, url):
     """Scrape a specific LinkedIn job listing page."""
-    options = Options()
-    options.add_argument("--headless")
-    driver = webdriver.Firefox(options=options)
     job_data = default_job_data(source="linkedin.com", url=url)
     
     try:
@@ -107,11 +120,8 @@ def scrape_linkedin_job(url):
     finally:
         driver.quit()
 
-def get_linkedin_job_links(search_url):
+def get_linkedin_job_links(driver, search_url):
     """Collect all LinkedIn job links."""
-    options = Options()
-    options.add_argument("--headless")
-    driver = webdriver.Firefox(options=options)
     job_links = []
     
     try:
@@ -120,28 +130,30 @@ def get_linkedin_job_links(search_url):
         click_element(driver, "button.modal__dismiss")
         
         previous_count = 0
-        retry_count = 0
+        retries = 0
         max_retries = 10
-        
-        while retry_count < max_retries:
+
+        while retries < max_retries:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(2)
-            click_element(driver, "button.infinite-scroller__show-more-button")
-            
-            job_cards = driver.find_elements(By.CSS_SELECTOR, ".job-search-card, .base-card")
-            for card in job_cards:
-                try:
-                    link = card.find_element(By.CSS_SELECTOR, "a.base-card__full-link").get_attribute("href")
-                    if link not in job_links:
-                        job_links.append(link)
-                except Exception:
-                    continue
-            
-            if len(job_links) > previous_count:
-                previous_count = len(job_links)
-                retry_count = 0
+
+            try:
+                see_more = WebDriverWait(driver, 2).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button.infinite-scroller__show-more-button"))
+                )
+                driver.execute_script("arguments[0].click();", see_more)
+                time.sleep(2)
+            except:
+                pass
+
+            jobs = driver.find_elements(By.CSS_SELECTOR, ".job-search-card, .base-card")
+            current_count = len(jobs)
+
+            if current_count > previous_count:
+                previous_count = current_count
+                retries = 0
             else:
-                retry_count += 1
+                retries += 1
         
         return job_links
     
@@ -152,16 +164,25 @@ def get_linkedin_job_links(search_url):
         driver.quit()
 
 def scrape_linkedin_jobs(db_file):
-    """Main function to scrape all LinkedIn job listings and store in TinyDB."""
     db = TinyDB(db_file)
     table = db.table(TABLE_LINKEDIN_RAW)
     Job = Query()
 
-    job_urls = get_linkedin_job_links(URL_LINKEDIN)
-    unique_urls = list(set(job_urls))
-    print(f"Total unique URLs found for LinkedIn: {len(unique_urls)}")
+    options = Options()
+    # options.add_argument("--headless")
+    driver = webdriver.Firefox(options=options)
 
-    for url in unique_urls:
-        wait = insert_if_new(table, Job, url, scrape_linkedin_job(url))
-        if wait:
-            time.sleep(random.uniform(2, 10))
+    try:
+        linkedin_login(driver, email, password)
+        job_urls = get_linkedin_job_links(driver, URL_LINKEDIN)
+
+        unique_urls = list(set(job_urls))
+        print(f"Total unique URLs found for LinkedIn: {len(unique_urls)}")
+
+        for url in unique_urls:
+            job_data = scrape_linkedin_job(driver, url)
+            wait = insert_if_new(table, Job, url, job_data)
+            if wait:
+                time.sleep(random.uniform(2, 10))
+    finally:
+        driver.quit()
