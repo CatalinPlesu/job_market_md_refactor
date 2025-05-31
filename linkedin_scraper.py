@@ -119,56 +119,51 @@ def scrape_linkedin_job(driver, url):
         return None
 
 def get_linkedin_job_links(driver, search_url):
-    """Collect all LinkedIn job links."""
-    job_links = []
-    
+    """Collect all LinkedIn job links from all paginated results."""
+    job_links = set()
+
     try:
         driver.get(search_url)
         time.sleep(2)
         click_element(driver, "button.modal__dismiss")
 
-        previous_count = 0
-        retries = 0
-        max_retries = 10
-
-        while retries < max_retries:
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)
-
+        while True:
+            # Scroll the jobs list container to load more jobs
             try:
-                see_more = WebDriverWait(driver, 2).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button.infinite-scroller__show-more-button"))
+                scrollable = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "scaffold-layout__list"))
                 )
-                driver.execute_script("arguments[0].click();", see_more)
-                time.sleep(2)
-            except:
-                pass
-
-            jobs = driver.find_elements(By.CSS_SELECTOR, "ul.jobs-search__results-list li")
-            current_count = len(jobs)
-
-            if current_count > previous_count:
-                previous_count = current_count
-                retries = 0
-            else:
-                retries += 1
-
-        # ✅ Extract job URLs here
-        job_cards = driver.find_elements(By.CSS_SELECTOR, "ul.jobs-search__results-list li")
-        for card in job_cards:
-            try:
-                link_elem = card.find_element(By.CSS_SELECTOR, "a.base-card__full-link")
-                url = link_elem.get_attribute("href")
-                if url:
-                    job_links.append(url)
+                for _ in range(5):
+                    driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable)
+                    time.sleep(1)
             except Exception as e:
-                print(f"Failed to extract link from a job card: {e}")
-        
-        return job_links
+                print("Scroll error:", e)
+
+            # Collect all job cards on the current page
+            job_cards = driver.find_elements(By.CSS_SELECTOR, 'a.job-card-container__link')
+            for card in job_cards:
+                try:
+                    url = card.get_attribute("href")
+                    if url:
+                        job_links.add(url)
+                except Exception as e:
+                    print(f"Error extracting job link: {e}")
+
+            # Try to go to the next page
+            try:
+                next_button = driver.find_element(By.CSS_SELECTOR, "button.jobs-search-pagination__button--next")
+                if not next_button.is_enabled():
+                    break
+                driver.execute_script("arguments[0].click();", next_button)
+                time.sleep(2)
+            except Exception:
+                break
+
+        return list(job_links)
 
     except Exception as e:
         print(f"Error collecting LinkedIn job links: {e}")
-        return job_links
+        return list(job_links)
 
 def scrape_linkedin_jobs(db_file):
     db = TinyDB(db_file)
@@ -176,7 +171,7 @@ def scrape_linkedin_jobs(db_file):
     Job = Query()
 
     options = Options()
-    # options.add_argument("--headless")
+    options.add_argument("--headless")
     driver = webdriver.Firefox(options=options)
 
     try:
