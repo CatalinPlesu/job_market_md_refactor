@@ -3,8 +3,8 @@ Description=Run scraper 3x/day at spaced times
 
 [Timer]
 OnCalendar=*-*-* 09:30:00
-OnCalendar=*-*-* 13:30:00
-OnCalendar=*-*-* 17:30:00
+OnCalendar=*-*-* 14:30:00
+OnCalendar=*-*-* 19:30:00
 Persistent=true
 
 [Install]
