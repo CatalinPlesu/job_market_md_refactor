@@ -19,44 +19,56 @@ def default_job_data(source, url):
         "url": url,
         "source": source,
         "processed": False,
-        "occurrences": [],
+        "occurrences": [get_now_date()],
         "date": get_now_date()
     }
 
-def insert_if_new(table, Job, url, data):
-    """Insert job data if URL hasn't already been processed.
-    Adds current date (dd/mm/yyyy) uniquely to occurrences list in DB.
+def check_if_new_url(table, Job, url):
+    """
+    Check if a job URL is new or already exists in the database.
+    If it exists, update its 'occurrences' field with today's date (if not already there).
+    Returns True if the URL is new and should be scraped. False if already processed today.
+    """
+    current_date = get_now_date()
+    existing = table.search(Job.url == url)
+
+    if not existing:
+        return True  # New URL, should be scraped and inserted
+
+    # Update occurrences if current date not yet recorded
+    record = existing[0]
+    occurrences = record.get('occurrences', [])
+    if not isinstance(occurrences, list):
+        occurrences = [occurrences]
+
+    if current_date not in occurrences:
+        occurrences.append(current_date)
+        table.update({'occurrences': occurrences}, Job.url == url)
+        print(f"Updated occurrences for {url} with date {current_date}")
+    else:
+        print(f"Skipping {url} — already recorded for today")
+
+    return False  # Not new, skip scraping
+
+def insert_job_data(table, data):
+    """
+    Insert job data into the database.
+    Assumes the data is for a new job URL.
+    Initializes occurrences with today's date.
     """
     if not data:
-        print(f"No data to insert for {url}")
+        print("No data to insert.")
         return False
 
     current_date = get_now_date()
+    occurrences = data.get('occurrences', [])
+    if not isinstance(occurrences, list):
+        occurrences = [occurrences]
 
-    existing = table.search(Job.url == url)
-    if not existing:
-        # For new entries, add occurrences list with current_date
-        occurrences = data.get('occurrences', [])
-        if not isinstance(occurrences, list):
-            occurrences = [occurrences]
-        if current_date not in occurrences:
-            occurrences.append(current_date)
-        data['occurrences'] = occurrences
+    if current_date not in occurrences:
+        occurrences.append(current_date)
 
-        table.insert(data)
-        print(f"Saved data for {url}")
-        return True
-    else:
-        # For existing entries, update occurrences field in DB
-        record = existing[0]
-        occurrences = record.get('occurrences', [])
-        if not isinstance(occurrences, list):
-            occurrences = [occurrences]
-        if current_date not in occurrences:
-            occurrences.append(current_date)
-            table.update({'occurrences': occurrences}, Job.url == url)
-            print(f"Updated occurrences for {url} with date {current_date}")
-            return True
-        else:
-            print(f"Skipping already processed URL: {url} (date already recorded)")
-            return False
+    data['occurrences'] = occurrences
+    table.insert(data)
+    print(f"Inserted new job data for {data['url']}")
+    return True

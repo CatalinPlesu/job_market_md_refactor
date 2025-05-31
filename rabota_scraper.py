@@ -6,7 +6,7 @@ from datetime import datetime
 from tinydb import TinyDB, Query
 
 from config import *
-from utils import default_job_data, insert_if_new
+from utils import *
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -84,4 +84,6 @@ def scrape_rabota_jobs(db_file=DB_FILE):
 
    
     for url in unique_urls:
-        insert_if_new(table, Job, url, scrape_rabota_page(url))
+        if check_if_new_url(table, Job, url):
+            data = scrape_rabota_page(url)
+            insert_job_data(table, data)

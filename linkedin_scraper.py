@@ -16,7 +16,7 @@ email = os.getenv("LINKEDIN_EMAIL")
 password = os.getenv("LINKEDIN_PASSWORD")
 
 from config import *
-from utils import default_job_data, insert_if_new
+from utils import *
 
 def clean_text(text):
     """Clean and normalize text."""
@@ -182,9 +182,10 @@ def scrape_linkedin_jobs(db_file):
         print(f"Total unique URLs found for LinkedIn: {len(unique_urls)}")
 
         for url in unique_urls:
-            job_data = scrape_linkedin_job(driver, url)
-            wait = insert_if_new(table, Job, url, job_data)
-            if wait:
+            if check_if_new_url(table, Job, url):
+                data = scrape_linkedin_job(driver, url)
+                insert_job_data(table, data)
                 time.sleep(random.uniform(2, 10))
+
     finally:
         driver.quit()
