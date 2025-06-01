@@ -36,7 +36,9 @@ def send_to_openai(data, context=CONTEXT, prompt=JOB_SCHEMA_PROMPTv2):
     """Sends data to OpenAI for processing."""
     client = OpenAI(api_key=API_KEY, base_url="https://api.deepseek.com")
     try:
-        json_string = json.dumps(data)
+        fields_to_remove = ['date', 'occurrences', 'processed', 'source', 'url']
+        cleaned_data = {k: v for k, v in data.items() if k not in fields_to_remove}
+        json_string = json.dumps(cleaned_data)
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
