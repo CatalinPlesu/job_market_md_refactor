@@ -29,7 +29,7 @@ def parse_json(json_string):
     try:
         return json.loads(json_string)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON: {e}")
+        logger.error(f"[ERROR:011] Invalid JSON: {e}")
         return None
 
 def send_to_openai(data, context=CONTEXT, prompt=JOB_SCHEMA_PROMPTv2):
@@ -47,7 +47,7 @@ def send_to_openai(data, context=CONTEXT, prompt=JOB_SCHEMA_PROMPTv2):
         )
         return response.choices[0].message.content
     except Exception as e:
-        logger.error(f"Error sending to OpenAI: {e}")
+        logger.error(f"[ERROR:012] Error sending to OpenAI: {e}")
         return None
 
 def process_record(record, source, db_file=DB_FILE):
@@ -58,18 +58,18 @@ def process_record(record, source, db_file=DB_FILE):
         
         raw_content = send_to_openai(record)
         if not raw_content:
-            logger.warning(f"Failed to get content from OpenAI for record: {record.get('url', 'Unknown URL')}")
+            logger.warning(f"[WARN:005] Failed to get content from OpenAI for record: {record.get('url', 'Unknown URL')}")
             return None
         
         cleaned_content = clean_raw_content(raw_content)
         json_string = extract_json_from_content(cleaned_content)
         if not json_string:
-            logger.warning(f"Failed to extract JSON from content for record: {record.get('url', 'Unknown URL')}")
+            logger.warning(f"[WARN:006] Failed to extract JSON from content for record: {record.get('url', 'Unknown URL')}")
             return None
         
         parsed_data = parse_json(json_string)
         if not parsed_data:
-            logger.warning(f"Failed to parse JSON for record: {record.get('url', 'Unknown URL')}")
+            logger.warning(f"[WARN:007] Failed to parse JSON for record: {record.get('url', 'Unknown URL')}")
             return None
         
         parsed_data["date"] = record["date"]
@@ -78,10 +78,10 @@ def process_record(record, source, db_file=DB_FILE):
         parsed_data["original_url"] = record["url"]
 
         processed_table.insert(parsed_data)
-        logger.info(f"Successfully processed record: {record.get('url', 'Unknown URL')}")
+        logger.info(f"[INFO:012] Successfully processed record: {record.get('url', 'Unknown URL')}")
         return parsed_data
     except Exception as e:
-        logger.error(f"Error processing record: {e}", exc_info=True)
+        logger.error(f"[ERROR:013] Error processing record: {e}", exc_info=True)
         return None
 
 def sync_occurrences_from_raw_to_processed(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE):
@@ -109,9 +109,9 @@ def sync_occurrences_from_raw_to_processed(source=TABLE_ROBOTA_MD_RAW, db_file=D
 
                 if merged != existing.get("occurrences", []):
                     processed_table.update({"occurrences": merged}, doc_ids=[existing.doc_id])
-                    logger.info(f"Synced occurrences for: {record['url']}")
+                    logger.info(f"[INFO:013] Synced occurrences for: {record['url']}")
     except Exception as e:
-        logger.error(f"Error syncing occurrences: {e}", exc_info=True)
+        logger.error(f"[ERROR:014] Error syncing occurrences: {e}", exc_info=True)
 
 def process_data(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE):
     """Processes unprocessed records and syncs occurrences."""
@@ -121,10 +121,10 @@ def process_data(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE):
 
         for doc in raw_table.all():
             if not doc.get("processed", False):
-                logger.info(f"Processing record: {doc.get('vacancy-title', doc.get('job_title', 'Unknown'))}")
+                logger.info(f"[INFO:014] Processing record: {doc.get('vacancy-title', doc.get('job_title', 'Unknown'))}")
                 process_record(doc, source, db_file)
                 raw_table.update({"processed": True}, doc_ids=[doc.doc_id])
 
         sync_occurrences_from_raw_to_processed(source, db_file)
     except Exception as e:
-        logger.error(f"Error in data processing: {e}", exc_info=True)
+        logger.error(f"[ERROR:015] Error in data processing: {e}", exc_info=True)

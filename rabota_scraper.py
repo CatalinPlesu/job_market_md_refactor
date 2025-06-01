@@ -36,7 +36,7 @@ def scrape_rabota_page(url):
         return extracted
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error scraping {url}: {e}")
+        logger.error(f"[ERROR:007] Error scraping {url}: {e}")
         return None
 
 def get_rabota_pages(base_url):
@@ -46,7 +46,7 @@ def get_rabota_pages(base_url):
 
     while True:
         url = f"{base_url}{page_number}"
-        logger.debug(f"Checking page: {url}")
+        logger.debug(f"[DEBUG:003] Checking page: {url}")
         try:
             res = requests.get(url, headers=headers)
             if res.status_code != 200:
@@ -55,17 +55,17 @@ def get_rabota_pages(base_url):
             page_number += 1
             time.sleep(2.1)
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching page {url}: {e}")
+            logger.error(f"[ERROR:008] Error fetching page {url}: {e}")
             break
     return all_pages
 
 def get_rabota_job_urls(page_url):
     """Extract job URLs from a Rabota.md page."""
-    logger.debug(f"Checking page: {page_url}")
+    logger.debug(f"[DEBUG:004] Checking page: {page_url}")
     try:
         res = requests.get(page_url, headers=headers)
         if res.status_code != 200:
-            logger.warning(f"Failed to fetch page {page_url} (status code: {res.status_code}).")
+            logger.warning(f"[WARN:004] Failed to fetch page {page_url} (status code: {res.status_code}).")
             return []
         
         soup = BeautifulSoup(res.text, 'html.parser')
@@ -74,7 +74,7 @@ def get_rabota_job_urls(page_url):
         time.sleep(2.1)
         return urls
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching page {page_url}: {e}")
+        logger.error(f"[ERROR:009] Error fetching page {page_url}: {e}")
         return []
 
 def scrape_rabota_jobs(db_file=DB_FILE):
@@ -84,7 +84,7 @@ def scrape_rabota_jobs(db_file=DB_FILE):
         table = db.table(TABLE_ROBOTA_MD_RAW)
         Job = Query()
 
-        logger.info("Starting Rabota.md scraping process")
+        logger.info("[INFO:010] Starting Rabota.md scraping process")
         all_pages = get_rabota_pages(URL_ROBOTA_MD)
         all_job_urls = []
         
@@ -93,7 +93,7 @@ def scrape_rabota_jobs(db_file=DB_FILE):
             all_job_urls.extend(job_urls)
 
         unique_urls = list(set(all_job_urls))
-        logger.info(f"Total unique URLs found for Rabota.md: {len(unique_urls)}")
+        logger.info(f"[INFO:011] Total unique URLs found for Rabota.md: {len(unique_urls)}")
 
         for url in unique_urls:
             if check_if_new_url(table, Job, url):
@@ -101,4 +101,4 @@ def scrape_rabota_jobs(db_file=DB_FILE):
                 insert_job_data(table, data)
                 
     except Exception as e:
-        logger.error(f"Error in Rabota.md scraping process: {e}", exc_info=True)
+        logger.error(f"[ERROR:010] Error in Rabota.md scraping process: {e}", exc_info=True)

@@ -57,9 +57,9 @@ def check_if_new_url(table, Job, url):
     if current_date not in occurrences:
         occurrences.append(current_date)
         table.update({'occurrences': occurrences}, Job.url == url)
-        logger.info(f"Updated occurrences for {url} with date {current_date}")
+        logger.info(f"[INFO:001] Updated occurrences for {url} with date {current_date}")
     else:
-        logger.info(f"Skipping {url} — already recorded for today")
+        logger.info(f"[INFO:002] Skipping {url} — already recorded for today")
 
     return False  # Not new, skip scraping
 
@@ -70,7 +70,7 @@ def insert_job_data(table, data):
     Initializes occurrences with today's date.
     """
     if not data:
-        logger.warning("No data to insert.")
+        logger.warning("[WARN:001] No data to insert.")
         return False
 
     current_date = get_now_date()
@@ -83,5 +83,5 @@ def insert_job_data(table, data):
 
     data['occurrences'] = occurrences
     table.insert(data)
-    logger.info(f"Inserted new job data for {data['url']}")
+    logger.info(f"[INFO:003] Inserted new job data for {data['url']}")
     return True
