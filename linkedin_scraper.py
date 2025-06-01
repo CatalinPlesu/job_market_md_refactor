@@ -10,6 +10,9 @@ from datetime import datetime
 from tinydb import TinyDB, Query
 from dotenv import load_dotenv
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 email = os.getenv("LINKEDIN_EMAIL")
@@ -34,18 +37,23 @@ def click_element(driver, selector, wait_time=2):
                 time.sleep(wait_time)
                 return True
     except Exception as e:
-        print(f"Failed to click {selector}: {e}")
+        logger.error(f"Failed to click {selector}: {e}")
     return False
 
 def linkedin_login(driver, email, password):
-    driver.get("https://www.linkedin.com/login")
-    time.sleep(2)
-    
-    driver.find_element(By.ID, "username").send_keys(email)
-    driver.find_element(By.ID, "password").send_keys(password)
-    driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
-    time.sleep(3)  # wait for redirect or cookie set
-
+    """Login to LinkedIn with provided credentials."""
+    try:
+        driver.get("https://www.linkedin.com/login")
+        time.sleep(2)
+        
+        driver.find_element(By.ID, "username").send_keys(email)
+        driver.find_element(By.ID, "password").send_keys(password)
+        driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        time.sleep(3)  # wait for redirect or cookie set
+        logger.info("Successfully logged in to LinkedIn")
+    except Exception as e:
+        logger.error(f"Failed to login to LinkedIn: {e}")
+        raise
 
 def scrape_linkedin_job(driver, url):
     """Scrape a specific LinkedIn job listing page."""
@@ -61,7 +69,7 @@ def scrape_linkedin_job(driver, url):
             "button[aria-label='Dismiss']"
         ]:
             if click_element(driver, selector):
-                print("Modal closed successfully")
+                logger.debug("Modal closed successfully")
                 break
         
         for selector in [
@@ -105,7 +113,8 @@ def scrape_linkedin_job(driver, url):
                     job_data['job_function'] = value
                 elif "Industries" in label:
                     job_data['industries'] = value
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to extract criteria: {e}")
                 continue
         
         job_data['skills'] = clean_text(driver.find_element(
@@ -115,7 +124,7 @@ def scrape_linkedin_job(driver, url):
         return job_data
     
     except Exception as e:
-        print(f"Error scraping LinkedIn job {url}: {e}")
+        logger.error(f"Error scraping LinkedIn job {url}: {e}")
         return None
 
 def get_linkedin_job_links(driver, search_url):
@@ -137,7 +146,7 @@ def get_linkedin_job_links(driver, search_url):
                     driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable)
                     time.sleep(1)
             except Exception as e:
-                print("Scroll error:", e)
+                logger.warning(f"Scroll error: {e}")
 
             # Collect all job cards on the current page
             job_cards = driver.find_elements(By.CSS_SELECTOR, 'a.job-card-container__link')
@@ -147,7 +156,7 @@ def get_linkedin_job_links(driver, search_url):
                     if url:
                         job_links.add(url)
                 except Exception as e:
-                    print(f"Error extracting job link: {e}")
+                    logger.warning(f"Error extracting job link: {e}")
 
             # Try to go to the next page
             try:
@@ -162,10 +171,11 @@ def get_linkedin_job_links(driver, search_url):
         return list(job_links)
 
     except Exception as e:
-        print(f"Error collecting LinkedIn job links: {e}")
+        logger.error(f"Error collecting LinkedIn job links: {e}")
         return list(job_links)
 
 def scrape_linkedin_jobs(db_file):
+    """Main function to scrape LinkedIn jobs and store in TinyDB."""
     db = TinyDB(db_file)
     table = db.table(TABLE_LINKEDIN_RAW)
     Job = Query()
@@ -179,7 +189,7 @@ def scrape_linkedin_jobs(db_file):
         job_urls = get_linkedin_job_links(driver, URL_LINKEDIN)
 
         unique_urls = list(set(job_urls))
-        print(f"Total unique URLs found for LinkedIn: {len(unique_urls)}")
+        logger.info(f"Total unique URLs found for LinkedIn: {len(unique_urls)}")
 
         for url in unique_urls:
             if check_if_new_url(table, Job, url):
@@ -187,5 +197,7 @@ def scrape_linkedin_jobs(db_file):
                 insert_job_data(table, data)
                 time.sleep(random.uniform(2, 10))
 
+    except Exception as e:
+        logger.error(f"Error in LinkedIn scraping process: {e}", exc_info=True)
     finally:
         driver.quit()

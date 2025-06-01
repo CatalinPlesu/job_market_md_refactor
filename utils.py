@@ -1,4 +1,17 @@
+import logging
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('scraper.log'),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -44,9 +57,9 @@ def check_if_new_url(table, Job, url):
     if current_date not in occurrences:
         occurrences.append(current_date)
         table.update({'occurrences': occurrences}, Job.url == url)
-        print(f"Updated occurrences for {url} with date {current_date}")
+        logger.info(f"Updated occurrences for {url} with date {current_date}")
     else:
-        print(f"Skipping {url} — already recorded for today")
+        logger.info(f"Skipping {url} — already recorded for today")
 
     return False  # Not new, skip scraping
 
@@ -57,7 +70,7 @@ def insert_job_data(table, data):
     Initializes occurrences with today's date.
     """
     if not data:
-        print("No data to insert.")
+        logger.warning("No data to insert.")
         return False
 
     current_date = get_now_date()
@@ -70,5 +83,5 @@ def insert_job_data(table, data):
 
     data['occurrences'] = occurrences
     table.insert(data)
-    print(f"Inserted new job data for {data['url']}")
+    logger.info(f"Inserted new job data for {data['url']}")
     return True

@@ -4,6 +4,9 @@ from urllib.parse import urljoin
 import time
 from datetime import datetime
 from tinydb import TinyDB, Query
+import logging
+
+logger = logging.getLogger(__name__)
 
 from config import *
 from utils import *
@@ -33,7 +36,7 @@ def scrape_rabota_page(url):
         return extracted
 
     except requests.exceptions.RequestException as e:
-        print(f"Error scraping {url}: {e}")
+        logger.error(f"Error scraping {url}: {e}")
         return None
 
 def get_rabota_pages(base_url):
@@ -43,47 +46,59 @@ def get_rabota_pages(base_url):
 
     while True:
         url = f"{base_url}{page_number}"
-        print(f"Checking: {url}")
-        res = requests.get(url, headers=headers)
-        if res.status_code != 200:
+        logger.debug(f"Checking page: {url}")
+        try:
+            res = requests.get(url, headers=headers)
+            if res.status_code != 200:
+                break
+            all_pages.append(url)
+            page_number += 1
+            time.sleep(2.1)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching page {url}: {e}")
             break
-        all_pages.append(url)
-        page_number += 1
-        time.sleep(2.1)
     return all_pages
 
 def get_rabota_job_urls(page_url):
     """Extract job URLs from a Rabota.md page."""
-    print(f"Checking: {page_url}")
-    res = requests.get(page_url, headers=headers)
-    if res.status_code != 200:
-        print(f"Failed to fetch page {page_url} (status code: {res.status_code}).")
+    logger.debug(f"Checking page: {page_url}")
+    try:
+        res = requests.get(page_url, headers=headers)
+        if res.status_code != 200:
+            logger.warning(f"Failed to fetch page {page_url} (status code: {res.status_code}).")
+            return []
+        
+        soup = BeautifulSoup(res.text, 'html.parser')
+        job_links = soup.find_all('a', class_='vacancyShowPopup')
+        urls = [urljoin(page_url, link['href']) for link in job_links if 'href' in link.attrs]
+        time.sleep(2.1)
+        return urls
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching page {page_url}: {e}")
         return []
-    
-    soup = BeautifulSoup(res.text, 'html.parser')
-    job_links = soup.find_all('a', class_='vacancyShowPopup')
-    urls = [urljoin(page_url, link['href']) for link in job_links if 'href' in link.attrs]
-    time.sleep(2.1)
-    return urls
 
 def scrape_rabota_jobs(db_file=DB_FILE):
     """Main function to scrape Rabota.md job listings and store in TinyDB."""
-    db = TinyDB(db_file)
-    table = db.table(TABLE_ROBOTA_MD_RAW)
-    Job = Query()
+    try:
+        db = TinyDB(db_file)
+        table = db.table(TABLE_ROBOTA_MD_RAW)
+        Job = Query()
 
-    all_pages = get_rabota_pages(URL_ROBOTA_MD)
-    all_job_urls = []
-    for page_url in all_pages:
-        job_urls = get_rabota_job_urls(page_url)
-        all_job_urls.extend(job_urls)
+        logger.info("Starting Rabota.md scraping process")
+        all_pages = get_rabota_pages(URL_ROBOTA_MD)
+        all_job_urls = []
+        
+        for page_url in all_pages:
+            job_urls = get_rabota_job_urls(page_url)
+            all_job_urls.extend(job_urls)
 
-    unique_urls = list(set(all_job_urls))
-    print(f"Total unique URLs found for Rabota.md: {len(unique_urls)}")
+        unique_urls = list(set(all_job_urls))
+        logger.info(f"Total unique URLs found for Rabota.md: {len(unique_urls)}")
 
-
-   
-    for url in unique_urls:
-        if check_if_new_url(table, Job, url):
-            data = scrape_rabota_page(url)
-            insert_job_data(table, data)
+        for url in unique_urls:
+            if check_if_new_url(table, Job, url):
+                data = scrape_rabota_page(url)
+                insert_job_data(table, data)
+                
+    except Exception as e:
+        logger.error(f"Error in Rabota.md scraping process: {e}", exc_info=True)
