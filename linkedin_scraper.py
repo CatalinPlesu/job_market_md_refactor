@@ -127,6 +127,29 @@ def scrape_linkedin_job(driver, url):
         logger.error(f"[ERROR:004] Error scraping LinkedIn job {url}: {e}")
         return None
 
+def scroll_page_to_bottom(driver, pause_time=2, max_attempts=5):
+    """
+    Scroll the entire page down patiently until no new content loads.
+    
+    :param driver: Selenium WebDriver instance.
+    :param pause_time: Seconds to wait after each scroll.
+    :param max_attempts: Number of attempts with no height change before stopping.
+    """
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    attempts = 0
+    
+    while attempts < max_attempts:
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(pause_time)
+        
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        
+        if new_height == last_height:
+            attempts += 1
+        else:
+            last_height = new_height
+            attempts = 0
+
 def get_linkedin_job_links(driver, search_url):
     """Collect all LinkedIn job links from all paginated results."""
     job_links = set()
@@ -139,12 +162,7 @@ def get_linkedin_job_links(driver, search_url):
         while True:
             # Scroll the jobs list container to load more jobs
             try:
-                scrollable = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "scaffold-layout__list"))
-                )
-                for _ in range(5):
-                    driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable)
-                    time.sleep(1)
+                scroll_page_to_bottom(driver, pause_time=2, max_attempts=5)
             except Exception as e:
                 logger.warning(f"[WARN:002] Scroll error: {e}")
 
