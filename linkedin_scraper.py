@@ -129,26 +129,39 @@ def scrape_linkedin_job(driver, url):
 
 def scroll_page_to_bottom(driver, pause_time=2, max_attempts=5):
     """
-    Scroll the entire page down patiently until no new content loads.
-    
-    :param driver: Selenium WebDriver instance.
-    :param pause_time: Seconds to wait after each scroll.
-    :param max_attempts: Number of attempts with no height change before stopping.
+    Find the scrollable div child inside the known container and scroll it gradually.
+    Assumes the container has two children: a heading and a scrollable div.
     """
-    last_height = driver.execute_script("return document.body.scrollHeight")
-    attempts = 0
-    
-    while attempts < max_attempts:
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(pause_time)
+    try:
+        # Find the container first
+        container = driver.find_element(By.CSS_SELECTOR, "div.scaffold-layout__list")
         
-        new_height = driver.execute_script("return document.body.scrollHeight")
+        # Get all children of container
+        children = container.find_elements(By.XPATH, "./*")
         
-        if new_height == last_height:
-            attempts += 1
-        else:
-            last_height = new_height
-            attempts = 0
+        # Assume second child is scrollable div
+        scrollable_div = children[1] if len(children) > 1 else None
+        
+        if not scrollable_div:
+            logger.warning("[WARN:008] Scrollable div child not found.")
+            return
+        
+        last_scroll_top = driver.execute_script("return arguments[0].scrollTop", scrollable_div)
+        attempts = 0
+        
+        while attempts < max_attempts:
+            driver.execute_script("arguments[0].scrollBy(0, 300);", scrollable_div)
+            time.sleep(pause_time)
+            new_scroll_top = driver.execute_script("return arguments[0].scrollTop", scrollable_div)
+            
+            if new_scroll_top == last_scroll_top:
+                attempts += 1
+            else:
+                last_scroll_top = new_scroll_top
+                attempts = 0
+                
+    except Exception as e:
+        logger.error(f"[ERROR:016] Failed to scroll scrollable div child: {e}")
 
 def get_linkedin_job_links(driver, search_url):
     """Collect all LinkedIn job links from all paginated results."""
@@ -162,7 +175,7 @@ def get_linkedin_job_links(driver, search_url):
         while True:
             # Scroll the jobs list container to load more jobs
             try:
-                scroll_page_to_bottom(driver, pause_time=2, max_attempts=5)
+                scroll_page_to_bottom(driver)
             except Exception as e:
                 logger.warning(f"[WARN:002] Scroll error: {e}")
 
