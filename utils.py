@@ -36,19 +36,35 @@ def default_job_data(source, url):
         "date": get_now_date()
     }
 
-def check_if_new_url(table, Job, url):
+
+def upsert_job_data(table, Job, data):
     """
-    Check if a job URL is new or already exists in the database.
-    If it exists, update its 'occurrences' field with today's date (if not already there).
-    Returns True if the URL is new and should be scraped. False if already processed today.
+    Check if a job URL exists in the database.
+    - If new, insert data with today's date in 'occurrences'.
+    - If exists, update 'occurrences' with today's date if not present.
+    No return value.
     """
+    if not data or 'url' not in data:
+        logger.warning("[WARN:001] No valid data to upsert.")
+        return
+
     current_date = get_now_date()
+    url = data['url']
     existing = table.search(Job.url == url)
 
     if not existing:
-        return True  # New URL, should be scraped and inserted
+        # New URL, initialize occurrences and insert
+        occurrences = data.get('occurrences', [])
+        if not isinstance(occurrences, list):
+            occurrences = [occurrences]
+        if current_date not in occurrences:
+            occurrences.append(current_date)
+        data['occurrences'] = occurrences
+        table.insert(data)
+        logger.info(f"[INFO:003] Inserted new job data for {url}")
+        return
 
-    # Update occurrences if current date not yet recorded
+    # URL exists, update occurrences if needed
     record = existing[0]
     occurrences = record.get('occurrences', [])
     if not isinstance(occurrences, list):
@@ -61,27 +77,3 @@ def check_if_new_url(table, Job, url):
     else:
         logger.info(f"[INFO:002] Skipping {url} — already recorded for today")
 
-    return False  # Not new, skip scraping
-
-def insert_job_data(table, data):
-    """
-    Insert job data into the database.
-    Assumes the data is for a new job URL.
-    Initializes occurrences with today's date.
-    """
-    if not data:
-        logger.warning("[WARN:001] No data to insert.")
-        return False
-
-    current_date = get_now_date()
-    occurrences = data.get('occurrences', [])
-    if not isinstance(occurrences, list):
-        occurrences = [occurrences]
-
-    if current_date not in occurrences:
-        occurrences.append(current_date)
-
-    data['occurrences'] = occurrences
-    table.insert(data)
-    logger.info(f"[INFO:003] Inserted new job data for {data['url']}")
-    return True

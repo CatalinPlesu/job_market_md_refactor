@@ -96,9 +96,8 @@ def scrape_rabota_jobs(db_file=DB_FILE):
         logger.info(f"[INFO:011] Total unique URLs found for Rabota.md: {len(unique_urls)}")
 
         for url in unique_urls:
-            if check_if_new_url(table, Job, url):
-                data = scrape_rabota_page(url)
-                insert_job_data(table, data)
+            data = scrape_rabota_page(url)
+            upsert_job_data(table, Job, data)
                 
     except Exception as e:
         logger.error(f"[ERROR:010] Error in Rabota.md scraping process: {e}", exc_info=True)

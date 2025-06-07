@@ -223,10 +223,9 @@ def scrape_linkedin_jobs(db_file):
         logger.info(f"[INFO:009] Total unique URLs found for LinkedIn: {len(unique_urls)}")
 
         for url in unique_urls:
-            if check_if_new_url(table, Job, url):
-                data = scrape_linkedin_job(driver, url)
-                insert_job_data(table, data)
-                time.sleep(random.uniform(2, 10))
+            data = scrape_linkedin_job(driver, url)
+            upsert_job_data(table, Job, data)
+            time.sleep(random.uniform(2, 10))
 
     except Exception as e:
         logger.error(f"[ERROR:006] Error in LinkedIn scraping process: {e}", exc_info=True)
