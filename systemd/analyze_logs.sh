@@ -22,25 +22,33 @@ analyze_logs() {
     # Count ERROR messages
     echo -e "${RED}=== ERROR Messages ===${NC}"
     grep -o "\[ERROR:[0-9]\{3\}\]" "$log_file" | sort | uniq -c | sort -k2 | while read count code; do
-        echo -e "${RED}$count occurrences of $code${NC}"
+        code_num=$(echo "$code" | grep -o "[0-9]\{3\}")
+        message=$(PYTHONPATH="../" python3 -c "from log_codes import get_message; print(get_message('ERROR', '$code_num'))")
+        echo -e "${RED}$count occurrences of $code - $message${NC}"
     done
     
     # Count WARNING messages
     echo -e "\n${YELLOW}=== WARNING Messages ===${NC}"
     grep -o "\[WARN:[0-9]\{3\}\]" "$log_file" | sort | uniq -c | sort -k2 | while read count code; do
-        echo -e "${YELLOW}$count occurrences of $code${NC}"
+        code_num=$(echo "$code" | grep -o "[0-9]\{3\}")
+        message=$(PYTHONPATH="../" python3 -c "from log_codes import get_message; print(get_message('WARN', '$code_num'))")
+        echo -e "${YELLOW}$count occurrences of $code - $message${NC}"
     done
     
     # Count INFO messages
     echo -e "\n${GREEN}=== INFO Messages ===${NC}"
     grep -o "\[INFO:[0-9]\{3\}\]" "$log_file" | sort | uniq -c | sort -k2 | while read count code; do
-        echo -e "${GREEN}$count occurrences of $code${NC}"
+        code_num=$(echo "$code" | grep -o "[0-9]\{3\}")
+        message=$(PYTHONPATH="../" python3 -c "from log_codes import get_message; print(get_message('INFO', '$code_num'))")
+        echo -e "${GREEN}$count occurrences of $code - $message${NC}"
     done
     
     # Count DEBUG messages
     echo -e "\n${BLUE}=== DEBUG Messages ===${NC}"
     grep -o "\[DEBUG:[0-9]\{3\}\]" "$log_file" | sort | uniq -c | sort -k2 | while read count code; do
-        echo -e "${BLUE}$count occurrences of $code${NC}"
+        code_num=$(echo "$code" | grep -o "[0-9]\{3\}")
+        message=$(PYTHONPATH="../" python3 -c "from log_codes import get_message; print(get_message('DEBUG', '$code_num'))")
+        echo -e "${BLUE}$count occurrences of $code - $message${NC}"
     done
 }
 
