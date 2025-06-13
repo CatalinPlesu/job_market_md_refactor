@@ -77,3 +77,29 @@ def upsert_job_data(table, Job, data):
     else:
         logger.info(f"[INFO:002] Skipping {url} — already recorded for today")
 
+def print_duplicate_urls(table):
+    """
+    Check and print duplicate entries based on the 'url' field.
+    Prints all matching records (with doc_id) for each duplicate group.
+    Separates groups with '---'.
+    """
+    from collections import defaultdict
+
+    url_map = defaultdict(list)
+
+    for record in table:
+        url = record.get("url")
+        if url:
+            url_map[url].append((record.doc_id, record))
+
+    found = False
+    for url, entries in url_map.items():
+        if len(entries) > 1:
+            found = True
+            print(f"Duplicate URL: {url}")
+            for doc_id, record in entries:
+                print(f"ID: {doc_id} | {record}")
+            print("---")
+
+    if not found:
+        print("No duplicate URLs found.")
