@@ -34,13 +34,13 @@ def parse_json(json_string):
 
 def send_to_openai(data, context=CONTEXT, prompt=JOB_SCHEMA_PROMPTv2):
     """Sends data to OpenAI for processing."""
-    client = OpenAI(api_key=API_KEY, base_url="https://api.deepseek.com")
+    client = OpenAI(api_key=API_KEY, base_url=API_URL)
     try:
         fields_to_remove = ['date', 'occurrences', 'processed', 'source', 'url']
         cleaned_data = {k: v for k, v in data.items() if k not in fields_to_remove}
         json_string = json.dumps(cleaned_data)
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model=MODEL,
             messages=[
                 {"role": "system", "content": context},
                 {"role": "user", "content": prompt + json_string},
@@ -114,6 +114,57 @@ def sync_occurrences_from_raw_to_processed(source=TABLE_ROBOTA_MD_RAW, db_file=D
                     logger.info(f"[INFO:013] Synced occurrences for: {record['url']}")
     except Exception as e:
         logger.error(f"[ERROR:014] Error syncing occurrences: {e}", exc_info=True)
+
+def verify_processed_flags(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE, fix=False):
+    """
+    Verifies if records marked as processed in the raw table have a matching entry in the processed table.
+    Logs any inconsistencies. If fix=True, sets 'processed' to False for invalid records.
+    Shows a simple progress bar without external libraries.
+    """
+    try:
+        db = TinyDB(db_file)
+        raw_table = db.table(source)
+        processed_table = db.table(TABLE_PROCESSED)
+
+        Job = Query()
+        ProcessedJob = Query()
+
+        processed_records = raw_table.search(Job.processed == True)
+        total = len(processed_records)
+        broken_doc_ids = []
+
+        def print_progress(current, total, bar_width=40):
+            progress = int((current / total) * bar_width)
+            bar = '#' * progress + '-' * (bar_width - progress)
+            print(f"\r[VERIFY] [{bar}] {current}/{total}", end='', flush=True)
+
+        for idx, record in enumerate(processed_records, start=1):
+            url = record.get("url")
+            date = record.get("date")
+            if not url or not date:
+                continue
+
+            match = processed_table.get(
+                (ProcessedJob.original_url == url) & (ProcessedJob.date == date)
+            )
+
+            if not match:
+                logger.warning(f"[WARN:009] No matching processed entry for: {url} on {date}")
+                broken_doc_ids.append(record.doc_id)
+
+            print_progress(idx, total)
+
+        print()  # move to next line after progress bar
+
+        if fix and broken_doc_ids:
+            raw_table.update({"processed": False}, doc_ids=broken_doc_ids)
+            logger.info(f"[INFO:016] Reset 'processed' to False for {len(broken_doc_ids)} records")
+
+        logger.info(f"[INFO:017] Verified {total} records. Invalid: {len(broken_doc_ids)}.")
+
+    except Exception as e:
+        logger.error(f"[ERROR:017] Error verifying processed flags: {e}", exc_info=True)
+
 
 def process_data(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE):
     """Processes unprocessed records and syncs occurrences."""

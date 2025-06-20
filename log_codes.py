@@ -18,7 +18,8 @@ ERROR_CODES = {
     "013": "Error processing record",
     "014": "Error syncing occurrences",
     "015": "Error in data processing",
-    "016": "Failed to scroll scrollable div child"
+    "016": "Failed to scroll scrollable div child",
+    "017": "Error verifying processed flags"
 }
 
 WARN_CODES = {
@@ -29,7 +30,8 @@ WARN_CODES = {
     "005": "Failed to get content from OpenAI",
     "006": "Failed to extract JSON from content",
     "007": "Failed to parse JSON",
-    "008": "Scrollable div child not found"
+    "008": "Scrollable div child not found",
+    "009": "No matching processed entry"
 }
 
 INFO_CODES = {
@@ -46,7 +48,8 @@ INFO_CODES = {
     "011": "Total unique URLs found for Rabota.md",
     "012": "Successfully processed record",
     "013": "Synced occurrences for URL",
-    "014": "Processing record"
+    "014": "Processing record",
+    "014": "Reset 'processed' to False "
 }
 
 DEBUG_CODES = {

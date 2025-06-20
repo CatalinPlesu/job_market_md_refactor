@@ -11,6 +11,9 @@ URL_ROBOTA_MD = "https://www.rabota.md/ro/vacancies/category/it/developers/"
 # this one should remove most EMEA jobs
 URL_LINKEDIN = "https://www.linkedin.com/jobs/search/?currentJobId=4016661303&f_PP=103403991&geoId=106178099&keywords=Developer&origin=JOB_SEARCH_PAGE_LOCATION_HISTORY&refresh=true&sortBy=R&start=25&trk=public_jobs_jobs-search-bar_search-submit"
 
+API_URL = "https://openrouter.ai/api/v1"
+MODEL = "deepseek/deepseek-chat:free"
+
 CONTEXT = """You are a job data extraction assistant. Extract job information into JSON following the provided schema.
 
 Example extraction:
