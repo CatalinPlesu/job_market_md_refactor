@@ -19,7 +19,8 @@ ERROR_CODES = {
     "014": "Error syncing occurrences",
     "015": "Error in data processing",
     "016": "Failed to scroll scrollable div child",
-    "017": "Error verifying processed flags"
+    "017": "Error verifying processed flags",
+    "018": "Error during deduplication process"
 }
 
 WARN_CODES = {
@@ -49,7 +50,13 @@ INFO_CODES = {
     "012": "Successfully processed record",
     "013": "Synced occurrences for URL",
     "014": "Processing record",
-    "014": "Reset 'processed' to False "
+    "015": "Reset 'processed' to False ",
+    "018": "Loaded processed records for deduplication",
+    "019": "Grouped processed records by duplicate keys",
+    "020": "Processing duplicate group",
+    "021": "Removed duplicate processed records",
+    "022": "Removed duplicate raw record",
+    "023": "Deduplication completed successfully"
 }
 
 DEBUG_CODES = {

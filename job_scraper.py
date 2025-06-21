@@ -1,3 +1,4 @@
+from deduplicator import deduplicate_processed
 from rabota_scraper import scrape_rabota_jobs
 from linkedin_scraper import scrape_linkedin_jobs
 from processor import process_data
@@ -32,6 +33,9 @@ def main():
             process_data(source=TABLE_ROBOTA_MD_RAW, db_file=DB_FILE)
             # Process LinkedIn data
             process_data(source=TABLE_LINKEDIN_RAW, db_file=DB_FILE)
+
+            # Deduplicate processed data
+            deduplicate_processed(DB_FILE)
         else:
             logger.info("[INFO:007] Current time in Moldova is outside the UTC range. Skipping processing.")
 
