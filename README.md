@@ -154,4 +154,4 @@ The following options are defined in `config.py` and control the behavior of the
 - The scraper and processor use a local TinyDB database (`data.json`).
 - The `.env` file is required for API keys and other secrets.
 - The systemd service runs the scraper via `systemd/run_scraper.sh`, which activates the venv and logs output. 
-- Acutally the website is rabota.md but I thought it was named robota, and it is hardcoded in most places, so i left it as is.
+- The website is rabota.md but I thought it was named robota, and it is hardcoded in most places, so i left it as is.
