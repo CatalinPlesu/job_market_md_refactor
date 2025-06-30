@@ -130,6 +130,25 @@ This script summarizes and color-codes error, warning, info, and debug messages 
 
 ---
 
+## Configuration Options
+
+The following options are defined in `config.py` and control the behavior of the scraper and processor:
+
+- **DB_FILE**: Name of the TinyDB database file (default: `data.json`).
+- **TABLE_ROBOTA_MD_RAW**: Table name for raw Rabota.md data (default: `robota_md_raw_data`).
+- **TABLE_LINKEDIN_RAW**: Table name for raw LinkedIn data (default: `linkedin_raw_data`).
+- **TABLE_PROCESSED**: Table name for processed job data (default: `processed_data`).
+- **URL_ROBOTA_MD**: URL for scraping Rabota.md IT jobs (default: `https://www.rabota.md/ro/vacancies/category/it/developers/`).
+- **URL_LINKEDIN**: URL for scraping LinkedIn jobs (default: a Moldova-focused search, see config.py for the latest value).
+- **API_URL**: The endpoint for the OpenAI-compatible API (default: `https://openrouter.ai/api/v1`).
+- **MODEL**: The model used for job data extraction (default: `deepseek/deepseek-chat:free`).
+- **CONTEXT**: System prompt for the AI extraction assistant (see `config.py` for the full text).
+- **JOB_SCHEMA_PROMPTv2**: Detailed instructions and schema for extracting job data as JSON (see `config.py` for the full schema and rules).
+
+> **Note:** The schema in `config.py` defines all the fields that will be extracted from job posts, including normalization rules and expected data types. You can customize these options to adapt the project to your needs.
+
+---
+
 ## Notes
 
 - The scraper and processor use a local TinyDB database (`data.json`).
